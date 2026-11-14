@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#10182b">
+<title>ASTRA: Echoes of the Forgotten Realm</title>
+<style>
+:root{--gold:#ffd98b;--panel:rgba(12,20,39,.9);--line:#806e65}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10182b;color:#fff;font-family:system-ui,Arial}
+#stage{height:100%;display:grid;place-items:center;background:radial-gradient(ellipse,#293d59,#0c1324 75%)}
+#game{width:min(100vw,160vh);height:min(100vh,62.5vw);max-width:100vw;max-height:100vh;display:block;image-rendering:pixelated;touch-action:none}
+.panel{background:var(--panel);border:1px solid #d4b77a66;border-radius:13px;box-shadow:0 8px 25px #0008;backdrop-filter:blur(7px)}
+#hud{position:absolute;top:10px;left:10px;padding:10px 12px;width:205px;font-size:12px;line-height:1.5}
+#hud b{color:var(--gold);letter-spacing:.7px}.bar{height:8px;background:#354056;border-radius:9px;overflow:hidden;margin:3px 0 6px}.fill{height:100%;width:100%}#hpbar{background:linear-gradient(90deg,#d83f61,#ff9b89)}#mpbar{background:linear-gradient(90deg,#397fe5,#8bdcff)}#xpbar{background:linear-gradient(90deg,#d4a63e,#fff0a6)}
+#quest{position:absolute;right:10px;top:10px;width:220px;padding:10px 12px;font-size:11px;line-height:1.5}#quest b{color:var(--gold)}
+#hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:7px 12px;font-size:11px;white-space:nowrap}
+#toast{position:absolute;top:24%;left:50%;transform:translateX(-50%);padding:10px 16px;opacity:0;transition:.2s;pointer-events:none;text-align:center;max-width:85vw;font-size:13px}#toast.show{opacity:1}
+#overlay{position:absolute;inset:0;display:grid;place-items:center;background:#080e1cdd;padding:15px}
+.card{width:min(480px,94vw);padding:25px;text-align:center}
+h1{font-size:clamp(28px,6vw,48px);letter-spacing:3px;color:#ffe0a0;margin:0;text-shadow:0 3px 20px #d47c66}
+.sub{color:#b8cce8;margin:4px 0 18px;letter-spacing:2px;font-size:12px}
+button{border:1px solid #f4d18a;background:linear-gradient(135deg,#b96858,#e8b96b);color:#201b25;font-weight:800;border-radius:10px;padding:11px 16px;font-size:14px;cursor:pointer;touch-action:none}
+button:active{transform:scale(.96)}
+#mobile{position:absolute;bottom:52px;left:12px;right:12px;display:none;justify-content:space-between;align-items:end;pointer-events:none}
+.pad,.acts{display:flex;gap:5px;align-items:center;pointer-events:auto}.pad button,.acts button{width:45px;height:45px;padding:0;background:#15243ddd;color:white;border-color:#c3d5e8;font-size:17px}.acts button{width:55px;height:55px;background:#703e55e8;border-color:#f2c5a4;font-size:12px}
+#menuButtons{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.small{color:#b9c5d8;font-size:12px;line-height:1.6}
+#inventory{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,90vw);padding:18px;display:none;text-align:center}
+#inventory h3{color:var(--gold);margin:0 0 10px}
+@media(max-width:700px){#mobile{display:flex}#hud{width:158px;font-size:10px;padding:7px}#quest{width:145px;font-size:9px;padding:7px}#hint{bottom:108px;font-size:9px}}
+</style>
+</head>
+<body>
+<div id="stage">
+<canvas id="game" width="960" height="600"></canvas>
+<div id="hud" class="panel">
+ <b id="heroTitle">LYRA · LEVEL 1</b>
+ <div>HP <span id="hpText">120/120</span></div><div class="bar"><div id="hpbar" class="fill"></div></div>
+ <div>MP <span id="mpText">40/40</span></div><div class="bar"><div id="mpbar" class="fill"></div></div>
+ <div>EXP <span id="xpText">0/50</span></div><div class="bar"><div id="xpbar" class="fill"></div></div>
+ <div>ATK <span id="atkText">18</span> · KOIN <span id="coinText">0</span> · POTION <span id="potText">2</span></div>
+</div>
+<div id="quest" class="panel"><b>✦ MAIN QUEST</b><div id="questText">Bicara dengan Penjaga di dekat reruntuhan.</div><div id="questCount">Tekan E di dekat NPC</div></div>
+<div id="hint" class="panel">WASD / panah: gerak · SPACE: tebas · J: skill · E: bicara · I: tas · P: potion</div>
+<div id="toast" class="panel"></div>
+<div id="mobile">
+ <div class="pad">
+  <div style="display:grid;grid-template-columns:repeat(3,42px);gap:3px">
+   <span></span><button data-key="ArrowUp">▲</button><span></span>
+   <button data-key="ArrowLeft">◀</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button>
+  </div>
+ </div>
+ <div class="acts"><button data-action="attack">TEBAS</button><button data-action="skill">SKILL</button><button data-action="potion">POTION</button><button data-action="talk">BICARA</button></div>
+</div>
+<div id="inventory" class="panel"><h3>TAS PETUALANG</h3><p id="bagText">Potion: 2<br>Koin: 0</p><button id="closeBag">TUTUP</button></div>
+<div id="overlay"><div class="card panel"><h1>ASTRA</h1><div class="sub">ECHOES OF THE FORGOTTEN REALM</div><p>Gerbang dimensi mulai retak. Jelajahi Hutan Senja, selesaikan misi, dan kalahkan penjaga monster.</p><div id="menuButtons"><button id="start">MULAI PETUALANGAN</button></div><p class="small">RPG Action 2D · Eksplorasi · Quest · Skill · Inventory · Level Up</p></div></div>
+</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),g=c.getContext('2d'),W=960,H=600;
+const $=id=>document.getElementById(id);
+const keys={};let running=false,last=0,toastTime=0,attackFX=0,skillFX=0,bagOpen=false,gameOver=false;
+const world={w:1900,h:1400};
+const hero={x:950,y:710,r:15,speed:205,hp:120,maxHp:120,mp:40,maxMp:40,level:1,xp:0,next:50,atk:18,coins:0,potions:2,dir:{x:1,y:0},swing:0,skillCd:0,hitCd:0};
+const npc={x:950,y:490};
+let quest=0,slimes=[],wolves=[];
+const trees=[];
+for(let y=80;y<world.h;y+=105)for(let x=70;x<world.w;x+=115){if(Math.hypot(x-950,y-710)>170&&Math.hypot(x-950,y-490)>115)trees.push({x:x+Math.sin(x*y)*18,y:y+Math.cos(x+y)*15,r:20+(x+y)%10})}
+function spawn(){slimes=[{x:570,y:560,hp:42,max:42,alive:true,kind:'slime'},{x:1280,y:560,hp:42,max:42,alive:true,kind:'slime'},{x:1320,y:850,hp:42,max:42,alive:true,kind:'slime'},{x:550,y:940,hp:42,max:42,alive:true,kind:'slime'},{x:1550,y:1100,hp:55,max:55,alive:true,kind:'wolf'}];}
+spawn();
+function toast(s){$('toast').textContent=s;$('toast').classList.add('show');toastTime=2.2}
+function rect(x,y,w,h,r,col){g.fillStyle=col;g.beginPath();g.roundRect(x,y,w,h,r);g.fill()}
+function drawTree(t){g.fillStyle='#513b32';g.fillRect(t.x-7,t.y-2,14,35);for(const [dx,dy,rad,col] of [[0,-25,t.r,'#174c43'],[-17,-8,t.r*.72,'#22624d'],[17,-8,t.r*.78,'#2b7054'],[0,-43,t.r*.6,'#33785a']]){g.fillStyle=col;g.beginPath();g.arc(t.x+dx,t.y+dy,rad,0,Math.PI*2);g.fill()}}
+function drawWorld(camX,camY){
+ let gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#284e53');gr.addColorStop(1,'#173a3c');g.fillStyle=gr;g.fillRect(0,0,W,H);
+ // ambient grass speckles
+ for(let i=0;i<250;i++){let x=((i*173)%world.w)-camX,y=((i*97)%world.h)-camY;if(x>-5&&x<W+5&&y>-5&&y<H+5){g.strokeStyle=i%2?'#70956a':'#8da46b';g.globalAlpha=.22;g.beginPath();g.moveTo(x,y);g.lineTo(x-3,y-6);g.stroke()}}g.globalAlpha=1;
+ // winding road
+ g.strokeStyle='#a68b68';g.lineWidth=95;g.lineCap='round';g.beginPath();g.moveTo(950-camX,-80-camY);g.bezierCurveTo(720-camX,300-camY,1180-camX,450-camY,950-camX,760-camY);g.bezierCurveTo(700-camX,1050-camY,1100-camX,1200-camY,900-camX,1480-camY);g.stroke();
+ g.strokeStyle='#c0a47c';g.lineWidth=3;g.setLineDash([15,18]);g.stroke();g.setLineDash([]);
+ trees.forEach(t=>{let x=t.x-camX,y=t.y-camY;if(x>-70&&x<W+70&&y>-80&&y<H+80)drawTree({x,y,r:t.r})});
+ // ruin shrine
+ let x=npc.x-camX,y=npc.y-camY;rect(x-72,y-25,144,62,7,'#5d4c4b');rect(x-60,y-50,120,27,5,'#b18a61');rect(x-48,y-40,96,77,4,'#8c7158');rect(x-17,y-20,34,57,3,'#342e3d');g.fillStyle='#e9c37c';g.fillRect(x-78,y-53,156,8);
+ g.fillStyle='#fff0bd';g.font='bold 12px system-ui';g.textAlign='center';g.fillText('RERUNTUHAN KUNO',x,y-66);
+}
+function drawHero(camX,camY){
+ let x=hero.x-camX,y=hero.y-camY;g.save();g.translate(x,y);
+ g.fillStyle='#09182788';g.beginPath();g.ellipse(0,13,20,8,0,0,Math.PI*2);g.fill();
+ // cape, legs, outfit
+ g.fillStyle='#8b3f61';g.beginPath();g.moveTo(-12,-13);g.lineTo(-20,16);g.lineTo(0,8);g.lineTo(18,16);g.lineTo(12,-13);g.fill();
+ rect(-11,0,9,18,4,'#27334a');rect(2,0,9,18,4,'#27334a');rect(-13,12,12,6,3,'#d9b77e');rect(1,12,12,6,3,'#d9b77e');
+ rect(-13,-17,26,24,7,'#e4d5c4');rect(-12,-14,24,16,5,'#b34c65');
+ g.fillStyle='#f1c7aa';g.beginPath();g.ellipse(0,-26,11,13,0,0,Math.PI*2);g.fill();
+ g.fillStyle='#30243d';g.beginPath();g.arc(0,-30,13,Math.PI,Math.PI*2);g.lineTo(13,-9);g.lineTo(7,-17);g.lineTo(-8,-15);g.lineTo(-13,-9);g.fill();
+ g.fillStyle='#fff';g.fillRect(-5,-27,2,2);g.fillRect(4,-27,2,2);g.fillStyle='#f3cf78';g.beginPath();g.arc(9,-34,3,0,7);g.fill();
+ // sword
+ g.strokeStyle='#d9edff';g.lineWidth=3;g.beginPath();g.moveTo(12,-5);g.lineTo(25,-26);g.stroke();g.strokeStyle='#e8bd70';g.lineWidth=3;g.beginPath();g.moveTo(8,-8);g.lineTo(17,-2);g.stroke();
+ if(hero.hitCd>0){g.globalAlpha=.45;g.fillStyle='#fff';g.beginPath();g.arc(0,-10,25,0,7);g.fill()}
+ g.restore();
+ if(attackFX>0){g.strokeStyle='#fff0a5';g.lineWidth=6;g.globalAlpha=attackFX/.22;g.beginPath();g.arc(x+hero.dir.x*25,y+hero.dir.y*25,42,-1.2,1.2);g.stroke();g.globalAlpha=1}
+ if(skillFX>0){g.strokeStyle='#86dfff';g.lineWidth=9;g.globalAlpha=skillFX/.45;g.beginPath();g.arc(x,y,85,0,7);g.stroke();g.globalAlpha=1}
+}
+function drawMob(m,cx,cy){if(!m.alive)return;let x=m.x-cx,y=m.y-cy;if(x<-60||x>W+60||y<-60||y>H+60)return;let bob=Math.sin(performance.now()/180+m.x)*3;
+ if(m.kind==='wolf'){g.fillStyle='#9b8e9a';g.beginPath();g.ellipse(x,y+bob,23,15,0,0,7);g.fill();g.fillStyle='#c7b4ad';g.beginPath();g.moveTo(x-13,y-10);g.lineTo(x-19,y-30);g.lineTo(x-3,y-17);g.fill();g.beginPath();g.moveTo(x+13,y-10);g.lineTo(x+19,y-30);g.lineTo(x+3,y-17);g.fill()}else{let q=g.createRadialGradient(x-7,y-9,2,x,y,25);q.addColorStop(0,'#c6fff0');q.addColorStop(.55,'#59d7b4');q.addColorStop(1,'#277b82');g.fillStyle=q;g.beginPath();g.moveTo(x-22,y+8+bob);g.quadraticCurveTo(x-26,y-23+bob,x,y-21+bob);g.quadraticCurveTo(x+25,y-23+bob,x+22,y+8+bob);g.quadraticCurveTo(x,y+23+bob,x-22,y+8+bob);g.fill()}
+ g.fillStyle='#18394a';g.fillRect(x-8,y-4+bob,4,5);g.fillRect(x+5,y-4+bob,4,5);
+ rect(x-22,y-33,44,5,3,'#263044');rect(x-22,y-33,44*m.hp/m.max,5,3,'#ff657d');
+}
+function drawNPC(cx,cy){let x=npc.x-cx,y=npc.y-cy;g.globalAlpha=.35+Math.sin(performance.now()/280)*.1;g.fillStyle='#ffe59c';g.beginPath();g.arc(x,y-9,31,0,7);g.fill();g.globalAlpha=1;g.fillStyle='#e9cba8';g.beginPath();g.arc(x,y-25,11,0,7);g.fill();rect(x-11,y-14,22,32,5,'#d6e0ed');g.fillStyle='#51405b';g.beginPath();g.arc(x,y-29,13,Math.PI,7);g.fill();g.fillStyle='#fff1c6';g.textAlign='center';g.font='12px system-ui';g.fillText('✦ PENJAGA',x,y-48)}
+function updateUI(){$('heroTitle').textContent='LYRA · LEVEL '+hero.level;$('hpText').textContent=Math.ceil(hero.hp)+'/'+hero.maxHp;$('mpText').textContent=Math.ceil(hero.mp)+'/'+hero.maxMp;$('xpText').textContent=hero.xp+'/'+hero.next;$('atkText').textContent=hero.atk;$('coinText').textContent=hero.coins;$('potText').textContent=hero.potions;$('hpbar').style.width=hero.hp/hero.maxHp*100+'%';$('mpbar').style.width=hero.mp/hero.maxMp*100+'%';$('xpbar').style.width=hero.xp/hero.next*100+'%';
+ $('questText').textContent=quest===0?'Bicara dengan Penjaga di dekat reruntuhan.':quest===1?'Kalahkan 4 Slime di sekitar hutan.':quest===2?'Kembali kepada Penjaga.':'Misi selesai! Jelajahi hutan dan kalahkan monster lain.';$('questCount').textContent=quest===1?'Slime: '+(4-slimes.filter(m=>m.alive&&m.kind==='slime').length)+'/4':quest===3?'Hadiah diterima: 60 koin + potion':'Tekan E di dekat NPC';
+}
+function gain(n){hero.xp+=n;while(hero.xp>=hero.next){hero.xp-=hero.next;hero.level++;hero.next=Math.floor(hero.next*1.45);hero.maxHp+=20;hero.hp=hero.maxHp;hero.maxMp+=8;hero.mp=hero.maxMp;hero.atk+=5;toast('LEVEL UP! Sekarang level '+hero.level+' · ATK meningkat!')}}
+function attack(){if(!running||bagOpen||hero.swing>0)return;hero.swing=.35;attackFX=.22;let hit=0;for(const m of slimes){if(!m.alive)continue;let dx=m.x-hero.x,dy=m.y-hero.y,d=Math.hypot(dx,dy),dot=(dx*hero.dir.x+dy*hero.dir.y)/(d||1);if(d<83&&dot>-.45){m.hp-=hero.atk;hit++;if(m.hp<=0){m.alive=false;hero.coins+=m.kind==='wolf'?25:8;gain(m.kind==='wolf'?35:15);toast(m.kind==='wolf'?'Serigala dikalahkan!':'Slime dikalahkan! Koin dan EXP didapat.')}}}if(!hit)toast('Tebasan meleset. Dekati monster!');updateUI()}
+function skill(){if(!running||bagOpen)return;if(hero.mp<15){toast('MP tidak cukup!');return}if(hero.skillCd>0){toast('Skill masih cooldown.');return}hero.mp-=15;hero.skillCd=4;skillFX=.45;let hit=0;for(const m of slimes){if(m.alive&&Math.hypot(m.x-hero.x,m.y-hero.y)<115){m.hp-=hero.atk*2;hit++;if(m.hp<=0){m.alive=false;hero.coins+=m.kind==='wolf'?25:8;gain(20)}}}toast(hit?'NOVA! Skill mengenai '+hit+' monster.':'NOVA! Tidak ada monster dalam jangkauan.');updateUI()}
+function potion(){if(hero.potions<=0){toast('Potion habis!');return}if(hero.hp===hero.maxHp&&hero.mp===hero.maxMp){toast('HP dan MP masih penuh.');return}hero.potions--;hero.hp=Math.min(hero.maxHp,hero.hp+55);hero.mp=Math.min(hero.maxMp,hero.mp+20);toast('Potion digunakan: HP +55, MP +20.');updateUI()}
+function talk(){if(Math.hypot(hero.x-npc.x,hero.y-npc.y)>95){toast('Dekati Penjaga di reruntuhan dahulu.');return}if(quest===0){quest=1;toast('Penjaga: Kalahkan 4 Slime. Setelah itu kembali padaku!')}else if(quest===1){toast('Penjaga: Hutan belum aman. Kalahkan 4 Slime!')}else if(quest===2){quest=3;hero.coins+=60;hero.potions++;gain(30);toast('Misi selesai! Hadiah 60 koin, 1 potion, dan 30 EXP.')}else toast('Penjaga: Gerbang dimensi menunggumu di ujung perjalanan.');updateUI()}
+function bag(){bagOpen=!bagOpen;$('inventory').style.display=bagOpen?'block':'none';$('bagText').innerHTML='Potion: '+hero.potions+'<br>Koin: '+hero.coins+'<br>Level: '+hero.level+'<br>Serangan: '+hero.atk}
+$('closeBag').onclick=bag;
+function move(dt){let dx=0,dy=0;if(keys.ArrowLeft||keys.KeyA||keys.a)dx--;if(keys.ArrowRight||keys.KeyD||keys.d)dx++;if(keys.ArrowUp||keys.KeyW||keys.w)dy--;if(keys.ArrowDown||keys.KeyS||keys.s)dy++;if(dx||dy){let l=Math.hypot(dx,dy);dx/=l;dy/=l;hero.x+=dx*hero.speed*dt;hero.y+=dy*hero.speed*dt;hero.dir={x:dx,y:dy}}hero.x=Math.max(25,Math.min(world.w-25,hero.x));hero.y=Math.max(25,Math.min(world.h-25,hero.y))}
+function update(dt){if(bagOpen)return;move(dt);hero.swing=Math.max(0,hero.swing-dt);hero.skillCd=Math.max(0,hero.skillCd-dt);hero.hitCd=Math.max(0,hero.hitCd-dt);attackFX=Math.max(0,attackFX-dt);skillFX=Math.max(0,skillFX-dt);hero.mp=Math.min(hero.maxMp,hero.mp+2*dt);
+ for(const m of slimes){if(!m.alive)continue;let dx=hero.x-m.x,dy=hero.y-m.y,d=Math.hypot(dx,dy);if(d<260&&d>35){m.x+=dx/d*(m.kind==='wolf'?75:48)*dt;m.y+=dy/d*(m.kind==='wolf'?75:48)*dt}if(d<34&&hero.hitCd<=0){hero.hp-=m.kind==='wolf'?15:8;hero.hitCd=.8;toast('Lyra terkena serangan! Gunakan potion (P).');if(hero.hp<=0){hero.hp=0;running=false;gameOver=true;$('overlay').style.display='grid';$('overlay').querySelector('h1').textContent='YOU DIED';$('overlay').querySelector('.sub').textContent='PETUALANGAN BELUM BERAKHIR';$('start').textContent='COBA LAGI'}}}
+ if(quest===1&&slimes.filter(m=>m.alive&&m.kind==='slime').length===0)quest=2;
+ if(toastTime>0){toastTime-=dt;if(toastTime<=0)$('toast').classList.remove('show')}updateUI()}
+function render(){let cx=Math.max(0,Math.min(world.w-W,hero.x-W/2)),cy=Math.max(0,Math.min(world.h-H,hero.y-H/2));drawWorld(cx,cy);drawNPC(cx,cy);slimes.forEach(m=>drawMob(m,cx,cy));drawHero(cx,cy)}
+function loop(t){if(!running)return;let dt=Math.min((t-last)/1000||0,.04);last=t;update(dt);render();requestAnimationFrame(loop)}
+function start(){hero.x=950;hero.y=710;hero.hp=hero.maxHp=120;hero.mp=hero.maxMp=40;hero.level=1;hero.xp=0;hero.next=50;hero.atk=18;hero.coins=0;hero.potions=2;hero.hitCd=0;hero.skillCd=0;quest=0;bagOpen=false;$('inventory').style.display='none';spawn();gameOver=false;$('overlay').style.display='none';$('overlay').querySelector('h1').textContent='ASTRA';$('overlay').querySelector('.sub').textContent='ECHOES OF THE FORGOTTEN REALM';$('start').textContent='MULAI PETUALANGAN';running=true;updateUI();last=performance.now();requestAnimationFrame(loop)}
+$('start').onclick=start;$('attackButton')?.addEventListener('click',attack);
+window.addEventListener('keydown',e=>{keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();if(e.repeat)return;if(e.code==='Space')attack();if(e.code==='KeyJ')skill();if(e.code==='KeyE')talk();if(e.code==='KeyP')potion();if(e.code==='KeyI')bag()});
+window.addEventListener('keyup',e=>keys[e.code]=false);
+document.querySelectorAll('[data-key]').forEach(b=>{let k=b.dataset.key;const down=e=>{e.preventDefault();keys[k]=true},up=e=>{e.preventDefault();keys[k]=false};b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointerleave',up);b.addEventListener('pointercancel',up)});
+document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();({attack,skill,potion,talk})[b.dataset.action]()}));
+render();updateUI();
+})();
+</script>
+</body>
+</html>
